@@ -25,13 +25,10 @@ app = FastAPI(
 )
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
-_cors_origins = settings.cors_origins_list
-_allow_all = "*" in _cors_origins or len(_cors_origins) == 0
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if _allow_all else _cors_origins,
-    allow_credentials=False if _allow_all else True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -40,20 +37,8 @@ app.add_middleware(
 @app.middleware("http")
 async def add_process_time(request: Request, call_next):
     start = time.time()
-    try:
-        response = await call_next(request)
-    except Exception as exc:
-        logger.error(f"Unhandled middleware error on {request.url}: {exc}", exc_info=True)
-        response = JSONResponse(
-            status_code=500,
-            content={"detail": "Internal server error. Please try again."},
-        )
-    duration = time.time() - start
-    response.headers["X-Process-Time"] = f"{duration:.3f}s"
-    # Always add CORS so browser sees the real error, not a CORS block
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
+    response = await call_next(request)
+    response.headers["X-Process-Time"] = f"{time.time() - start:.3f}s"
     return response
 
 # ── Global Exception Handler ──────────────────────────────────────────────────
@@ -63,11 +48,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": f"Internal server error: {type(exc).__name__}"},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Allow-Methods": "*",
-        },
     )
 
 # ── Startup ───────────────────────────────────────────────────────────────────

@@ -26,7 +26,6 @@ class AuthService:
         )
         db.add(user)
         await db.flush()
-        await db.commit()
         await db.refresh(user)
 
         token = create_access_token({"sub": str(user.id)})
