@@ -1,0 +1,26 @@
+# Environment secrets — NEVER commit these
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+venv311/
+*.egg-info/
+dist/
+build/
+
+# Database & uploads
+*.db
+backend/uploads/
+
+# Node
+node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
