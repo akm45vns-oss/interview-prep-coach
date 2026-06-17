@@ -40,9 +40,20 @@ app.add_middleware(
 @app.middleware("http")
 async def add_process_time(request: Request, call_next):
     start = time.time()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        logger.error(f"Unhandled middleware error on {request.url}: {exc}", exc_info=True)
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error. Please try again."},
+        )
     duration = time.time() - start
     response.headers["X-Process-Time"] = f"{duration:.3f}s"
+    # Always add CORS so browser sees the real error, not a CORS block
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
     return response
 
 # ── Global Exception Handler ──────────────────────────────────────────────────
@@ -51,7 +62,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled error on {request.url}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error. Please try again."}
+        content={"detail": f"Internal server error: {type(exc).__name__}"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "*",
+        },
     )
 
 # ── Startup ───────────────────────────────────────────────────────────────────

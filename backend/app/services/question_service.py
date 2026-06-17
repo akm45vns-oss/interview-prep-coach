@@ -1,12 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from datetime import datetime, timezone
 
 from app.models.session import InterviewSession, InterviewQuestion, SessionStatus
 from app.models.resume import Resume
 from app.ai.llm_client import llm_client
-from app.schemas.interview import InterviewStartRequest, SessionOut
+from app.schemas.interview import InterviewStartRequest, SessionOut, QuestionOut
 
 
 class QuestionService:
@@ -72,7 +73,29 @@ Experience: {', '.join(f"{e.get('title','')} at {e.get('company','')}" for e in 
             await db.refresh(q)
         await db.refresh(session)
 
-        return SessionOut.model_validate(session)
+        # Build response manually to avoid async lazy-load issues
+        question_outs = [
+            QuestionOut(
+                id=q.id,
+                question_text=q.question_text,
+                category=q.category,
+                difficulty=q.difficulty,
+                order_index=q.order_index,
+            )
+            for q in question_objs
+        ]
+        return SessionOut(
+            id=session.id,
+            user_id=session.user_id,
+            resume_id=session.resume_id,
+            role=session.role,
+            difficulty=session.difficulty,
+            status=session.status,
+            total_questions=session.total_questions,
+            created_at=session.created_at,
+            completed_at=session.completed_at,
+            questions=question_outs,
+        )
 
     @staticmethod
     async def _generate_questions(
@@ -129,7 +152,9 @@ Return JSON array:
     @staticmethod
     async def get_session_questions(session_id: int, user_id: int, db: AsyncSession) -> SessionOut:
         result = await db.execute(
-            select(InterviewSession).where(
+            select(InterviewSession)
+            .options(selectinload(InterviewSession.questions))
+            .where(
                 InterviewSession.id == session_id,
                 InterviewSession.user_id == user_id
             )
@@ -138,11 +163,25 @@ Return JSON array:
         if not session:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
-        # Load questions
-        q_result = await db.execute(
-            select(InterviewQuestion)
-            .where(InterviewQuestion.session_id == session_id)
-            .order_by(InterviewQuestion.order_index)
+        question_outs = [
+            QuestionOut(
+                id=q.id,
+                question_text=q.question_text,
+                category=q.category,
+                difficulty=q.difficulty,
+                order_index=q.order_index,
+            )
+            for q in sorted(session.questions, key=lambda x: x.order_index)
+        ]
+        return SessionOut(
+            id=session.id,
+            user_id=session.user_id,
+            resume_id=session.resume_id,
+            role=session.role,
+            difficulty=session.difficulty,
+            status=session.status,
+            total_questions=session.total_questions,
+            created_at=session.created_at,
+            completed_at=session.completed_at,
+            questions=question_outs,
         )
-        session.questions = q_result.scalars().all()
-        return SessionOut.model_validate(session)
