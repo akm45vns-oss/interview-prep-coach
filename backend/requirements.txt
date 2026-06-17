@@ -1,3 +1,4 @@
+# ⚡ Use --prefer-binary to avoid compiling from source (much faster on Render)
 # FastAPI & Server
 fastapi==0.111.0
 uvicorn[standard]==0.30.1
@@ -13,9 +14,9 @@ aiosqlite==0.20.0
 
 # AI / LLM
 groq==0.9.0
-sentence-transformers==3.0.1
-scikit-learn==1.5.0
-numpy==1.26.4
+sentence-transformers>=3.0.1
+scikit-learn>=1.5.0
+numpy>=1.26.4
 
 # Resume Parsing
 pypdf2==3.0.1
