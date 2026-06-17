@@ -14,9 +14,9 @@ aiosqlite==0.20.0
 
 # AI / LLM
 groq==0.9.0
-sentence-transformers>=3.0.1
-scikit-learn>=1.5.0
-numpy>=1.26.4
+# sentence-transformers, scikit-learn, numpy removed — PyTorch alone uses ~350MB
+# which exceeds Render free tier's 512MB RAM limit.
+# The app automatically falls back to fuzzy string matching (see skill_matcher.py).
 
 # Resume Parsing
 pypdf2==3.0.1
